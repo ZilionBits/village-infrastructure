@@ -12,7 +12,6 @@ import lt.village.infrastructure.rest.dto.CitizenDto;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 
 @AllArgsConstructor
 @Service
