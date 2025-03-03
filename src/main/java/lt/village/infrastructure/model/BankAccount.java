@@ -37,4 +37,10 @@ public class BankAccount {
                 .insert(4,' ').insert(9,' ').insert(14,' ')
                 .toString();
     }
+
+    @PreRemove
+    private void removeBankAccount() {
+        citizen.getBankAccounts().remove(this);
+        bank.getBankAccounts().remove(this);
+    }
 }

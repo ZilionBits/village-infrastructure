@@ -1,6 +1,7 @@
 package lt.village.infrastructure.rest.dto;
 
-import jakarta.validation.constraints.NotEmpty;
+
+import jakarta.validation.constraints.DecimalMin;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -13,7 +14,7 @@ public class CitizenDto {
     private String lastName;
     private String email;
     private String phone;
-    @NotEmpty
+    @DecimalMin(value = "0", message = "Cash balance can not be negative.")
     private BigDecimal cashBalance;
 
 }
