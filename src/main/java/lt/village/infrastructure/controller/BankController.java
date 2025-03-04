@@ -4,6 +4,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import lt.village.infrastructure.rest.CreateBankAccountRequest;
+import lt.village.infrastructure.rest.SendBalanceBetweenBankAccountRequest;
 import lt.village.infrastructure.rest.dto.CitizenDto;
 import lt.village.infrastructure.service.BankService;
 import org.springframework.http.HttpStatus;
@@ -31,14 +32,28 @@ public class BankController {
         }
     }
 
-    @DeleteMapping
-    public ResponseEntity<Map<String,String>> deleteBankAccount(@RequestBody @Valid CitizenDto citizenDto, @RequestParam String accountNumber) {
+    @PutMapping
+    public ResponseEntity<Map<String, String>> transferBalanceBetweenBankAccount(@RequestBody @Valid SendBalanceBetweenBankAccountRequest transferRequest) {
+        try {
+            var response = bankService.sendBalanceFromBankAccountToBankAccount(transferRequest);
+            return ResponseEntity.status(HttpStatus.OK).body(Map.of(MESSAGE_STRING, response));
+        } catch (EntityNotFoundException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(MESSAGE_STRING, ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(MESSAGE_STRING, ex.getMessage()));
+        } catch (IllegalAccessException ex) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(MESSAGE_STRING, ex.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/{accountNumber}")
+    public ResponseEntity<Map<String,String>> deleteBankAccount(@RequestBody @Valid CitizenDto citizenDto, @PathVariable String accountNumber) {
         try {
             var response = bankService
                     .closeBankAccount(citizenDto, accountNumber);
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(Map.of(MESSAGE_STRING, response));
         } catch (IllegalAccessException ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(MESSAGE_STRING, ex.getMessage()));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(MESSAGE_STRING, ex.getMessage()));
         } catch (EntityNotFoundException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(MESSAGE_STRING, ex.getMessage()));
         }

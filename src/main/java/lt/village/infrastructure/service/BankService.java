@@ -9,6 +9,7 @@ import lt.village.infrastructure.model.Citizen;
 import lt.village.infrastructure.repository.BankAccountRepository;
 import lt.village.infrastructure.repository.BankRepository;
 import lt.village.infrastructure.repository.CitizenRepository;
+import lt.village.infrastructure.rest.SendBalanceBetweenBankAccountRequest;
 import lt.village.infrastructure.rest.dto.BankDto;
 import lt.village.infrastructure.rest.dto.CitizenDto;
 import org.springframework.stereotype.Service;
@@ -26,8 +27,8 @@ public class BankService {
 
     public String createBankAccount(BankDto bank, CitizenDto citizen, BigDecimal initialBalance) {
 
-        Bank selectedBank = verifyBank(bank);
-        Citizen client = verifyCitizen(citizen);
+        var selectedBank = verifyBank(bank);
+        var client = verifyCitizen(citizen);
 
         if (client.getCashBalance().compareTo(initialBalance) < 0) {
             return String.format("Citizen %s %s has insufficient funds (%.2f) to deposit initial balance (%.2f)",
@@ -53,13 +54,29 @@ public class BankService {
         if ( isAccountNumberBelongToCitizen(client, selectedBankAccount) ) {
             transferFromBankAccountToCitizen(client, selectedBankAccount);
             bankAccountRepository.delete(selectedBankAccount);
-        } else {
-            throw new IllegalAccessException(String.format("Fraud detected, given Account Number: ( %s ) not belong to Citizen: ( %s %s )",
-                    accountNumber, client.getFirstName(), client.getLastName()));
         }
 
         return String.format("Bank Account ( %s ) for holder %s %s successfully closed.",
                 accountNumber, client.getFirstName(), client.getLastName());
+    }
+
+    public String sendBalanceFromBankAccountToBankAccount(SendBalanceBetweenBankAccountRequest transferRequest) throws IllegalAccessException {
+        var clientPayer = verifyCitizen(transferRequest.getPayer());
+        var clientReceiver = verifyCitizen(transferRequest.getReceiver());
+        var selectedBankAccountPayer = verifyAccountNumber(transferRequest.getBankAccountPayer());
+        var selectedBankAccountReceiver = verifyAccountNumber(transferRequest.getBankAccountReceiver());
+
+        if ( isAccountNumberBelongToCitizen(clientPayer, selectedBankAccountPayer) &&
+                isAccountNumberBelongToCitizen(clientReceiver, selectedBankAccountReceiver) &&
+                checkIfBalanceEnoughToTransfer(selectedBankAccountPayer, transferRequest.getAmount()) ) {
+
+            selectedBankAccountPayer.setBalance(selectedBankAccountPayer.getBalance().subtract(transferRequest.getAmount()));
+            selectedBankAccountReceiver.setBalance(selectedBankAccountReceiver.getBalance().add(transferRequest.getAmount()));
+
+        }
+
+        return String.format("Payment: ( %.2f ) successfully proceeded.", transferRequest.getAmount());
+
     }
 
     protected Citizen verifyCitizen(CitizenDto citizen) {
@@ -78,9 +95,23 @@ public class BankService {
                 .orElseThrow(() -> new EntityNotFoundException(String.format("Bank account with number: (%s) not exist.", accountNumber)));
     }
 
-    protected boolean isAccountNumberBelongToCitizen(Citizen citizen, BankAccount account) {
-        return citizen.getBankAccounts().stream()
-                .anyMatch(acc -> acc.getAccountNumber().equals(account.getAccountNumber()));
+    protected boolean isAccountNumberBelongToCitizen(Citizen citizen, BankAccount account) throws IllegalAccessException {
+        if( citizen.getBankAccounts().stream()
+                .anyMatch(acc -> acc.getAccountNumber().equals(account.getAccountNumber())) ) {
+            return true;
+        } else {
+            throw new IllegalAccessException(String.format("Fraud detected, given Account Number: ( %s ) not belong to Citizen: ( %s %s )",
+                    account.getAccountNumber(), citizen.getFirstName(), citizen.getLastName()));
+        }
+    }
+
+    protected boolean checkIfBalanceEnoughToTransfer(BankAccount payerAccount, BigDecimal transferAmount) {
+        if ( transferAmount.compareTo(payerAccount.getBalance()) <= 0 ) {
+            return true;
+        } else {
+            throw new IllegalArgumentException(String.format("Citizen %s %s has insufficient funds ( %.2f ) to send ( %.2f )",
+                    payerAccount.getCitizen().getFirstName(), payerAccount.getCitizen().getLastName(), payerAccount.getBalance(), transferAmount));
+        }
     }
 
     protected void transferFromBankAccountToCitizen(Citizen client, BankAccount closedAccount) {
