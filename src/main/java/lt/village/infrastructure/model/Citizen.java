@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.HashSet;
 import java.util.Set;
 
 
@@ -26,6 +27,6 @@ public class Citizen {
     private BigDecimal cashBalance = BigDecimal.ZERO;
     @OneToMany
     @JoinColumn(name = "citizen_id")
-    private Set<BankAccount> bankAccounts;
+    private Set<BankAccount> bankAccounts = new HashSet<>();
 
 }
